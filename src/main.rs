@@ -183,6 +183,9 @@ fn custom_query(req: HttpRequest<AppState>,
                     let output = format!("{:?}", req.headers().get(param).unwrap());
                     return Ok(HttpResponse::Ok().content_type("text/plain").body(output))
                 } else {
+                    if is_cli(&req) {
+                        return Ok(HttpResponse::Ok().content_type("text/html").body(""))
+                    }
                     render_template(state, "404.html")
                 }
         }
