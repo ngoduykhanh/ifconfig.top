@@ -94,7 +94,7 @@ fn index(req: HttpRequest<AppState>,
     // If user browses the index page by using command line,
     // return the public ip address instead of whole html page.
     if is_cli(&req) {
-        return Ok(HttpResponse::Ok().content_type("text/html").body(ip_address))
+        return Ok(HttpResponse::Ok().content_type("text/plain").body(ip_address + "\n"))
     }
 
     let default_cmd = String::from("curl");
