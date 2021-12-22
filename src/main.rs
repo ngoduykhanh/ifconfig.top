@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate serde_json;
 extern crate actix_web;
 extern crate actix_files;
@@ -6,23 +5,16 @@ extern crate maxminddb;
 extern crate regex;
 extern crate env_logger;
 
-use std::{env};
 use std::net::IpAddr;
 use std::str::FromStr;
 use std::collections::HashMap;
-use std::fmt::format;
-use serde_json::ser::State;
-use serde::Deserialize;
-use regex::Regex;
-use actix_web::http::{Method};
-use actix_web::{get, post, http, web, dev, App, Error, HttpRequest, HttpResponse, Result, HttpServer, Responder};
-use actix_web::web::Query;
-use actix_web::middleware::Logger;
-use actix_web::middleware::errhandlers::{ErrorHandlerResponse, ErrorHandlers};
-use actix_files::{NamedFile, Files};
-use env_logger::Env;
-use maxminddb::geoip2;
+
 use tera::Tera;
+use actix_web::{get, web, App, Error, HttpRequest, HttpResponse, Result, HttpServer, Responder};
+use actix_files::Files;
+use regex::Regex;
+use serde::Deserialize;
+use maxminddb::geoip2;
 
 #[derive(Deserialize)]
 struct ListQuery {
@@ -77,22 +69,9 @@ fn render_template(tera: web::Data<Tera>, template: &str) -> Result<HttpResponse
     Ok(HttpResponse::Ok().content_type("text/html").body(s))
 }
 
-async fn favicon() -> Result<NamedFile> {
-    Ok(NamedFile::open("static/favicon.ico")?)
-}
-
-fn p404(tera: web::Data<Tera>) -> Result<HttpResponse, Error> {
+async fn not_found(tera: web::Data<Tera>) -> Result<HttpResponse, Error> {
     render_template(tera, "404.html")
 }
-
-fn render_500<B>(mut res: dev::ServiceResponse<B>) -> Result<ErrorHandlerResponse<B>> {
-    res.response_mut().headers_mut().insert(
-        http::header::CONTENT_TYPE,
-        http::HeaderValue::from_static("Error"),
-    );
-    Ok(ErrorHandlerResponse::Response(res))
-}
-
 
 #[get("/")]
 async fn index(req: HttpRequest, query: web::Query::<ListQuery>, tera: web::Data<Tera>) -> impl Responder {
@@ -178,7 +157,7 @@ async fn custom_query(req: HttpRequest, path: web::Path<PathInfo>, tera: web::Da
                 return Ok(HttpResponse::Ok().content_type("text/plain").body(output));
             } else {
                 if is_cli(&req) {
-                    return Ok(HttpResponse::Ok().content_type("text/html").body(""));
+                    return Ok(HttpResponse::Ok().content_type("text/plain").body(""));
                 }
                 render_template(tera, "404.html")
             }
@@ -201,7 +180,9 @@ async fn main() -> std::io::Result<()> {
             .service(Files::new("/static", "./static").show_files_listing())
             .service(index)
             .service(custom_query)
-            // .default_service(p404())
+            .default_service(
+                web::route().to(not_found)
+            )
     })
         .bind("0.0.0.0:9292")?
         .run()
