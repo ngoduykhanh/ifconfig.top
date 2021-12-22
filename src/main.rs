@@ -5,6 +5,7 @@ extern crate maxminddb;
 extern crate regex;
 extern crate env_logger;
 
+use std::env;
 use std::net::IpAddr;
 use std::str::FromStr;
 use std::collections::HashMap;
@@ -33,7 +34,15 @@ fn is_cli(req: &HttpRequest) -> bool {
 }
 
 fn lookup_ip(req: &HttpRequest) -> String {
-    return format!("{}", req.peer_addr().unwrap().ip());
+    return match env::var("PROXY_MODE") {
+        Ok(_) => {
+            if let Some(real_ip) = req.connection_info().realip_remote_addr() {
+                return format!("{}", real_ip);
+            }
+            format!("{}", req.peer_addr().unwrap().ip())
+        }
+        Err(_) => format!("{}", req.peer_addr().unwrap().ip())
+    };
 }
 
 fn lookup_cmd(cmd: &str) -> &str {

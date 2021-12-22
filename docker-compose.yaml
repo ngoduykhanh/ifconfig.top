@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  ifconfig:
+    image: ngoduykhanh/ifconfig.top:latest
+    container_name: ifconfig
+    environment:
+      - PROXY_MODE=true
+    ports:
+      - "5000:5000"
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m

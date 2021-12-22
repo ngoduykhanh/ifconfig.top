@@ -11,7 +11,9 @@ $ cd ifconfig.top
 $ cargo run
 ```
 
-Open your web browser and go to http://127.0.0.1:5000.
+Visit the app at http://127.0.0.1:5000
+
+_Note: set `PROXY_MODE=true` if you deploy the app behind a proxy_
 
 ## License
 MIT
