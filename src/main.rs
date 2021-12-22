@@ -186,7 +186,7 @@ async fn main() -> std::io::Result<()> {
                 web::route().to(not_found)
             )
     })
-        .bind("0.0.0.0:9292")?
+        .bind("0.0.0.0:5000")?
         .run()
         .await
 }

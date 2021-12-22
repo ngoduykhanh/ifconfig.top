@@ -1,5 +1,7 @@
 ## ifconfig.top
-A simple web interface written in Rust to show visitor's ip address. Demo: [http://ifconfig.top](http://ifconfig.top).
+A simple web application written in Rust to show visitor's ip address.
+
+Demo: [https://ifconfig.top](https://ifconfig.top).
 
 ## Run it
 Clone the source code and run it
@@ -9,7 +11,7 @@ $ cd ifconfig.top
 $ cargo run
 ```
 
-Open your web browser and go to http://127.0.0.1:9292.
+Open your web browser and go to http://127.0.0.1:5000.
 
 ## License
 MIT
