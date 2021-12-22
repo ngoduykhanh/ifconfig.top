@@ -55,7 +55,7 @@ fn lookup_country(ip_address: &String) -> String {
     return match reader.lookup(ip) {
         Ok(db) => {
             let db: geoip2::Country = db;
-            format!("{:?}", db)
+            format!("{}", db.country.unwrap().names.unwrap()["en"])
         }
         Err(error) => {
             println!("Error during looking up ip {:?} the DB: {:?}", ip_address, error);
