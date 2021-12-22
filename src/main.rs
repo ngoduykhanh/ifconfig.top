@@ -177,7 +177,9 @@ async fn main() -> std::io::Result<()> {
         };
         App::new()
             .data(tera)
-            .service(Files::new("/static", "./static").show_files_listing())
+            .service(
+                Files::new("/static", "./static").show_files_listing()
+            )
             .service(index)
             .service(custom_query)
             .default_service(
