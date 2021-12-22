@@ -1,109 +1,107 @@
-#![allow(unused_variables)]
-
-extern crate actix;
-extern crate actix_web;
-extern crate env_logger;
-extern crate futures;
-extern crate regex;
 extern crate serde_json;
+extern crate actix_web;
+extern crate actix_files;
 extern crate maxminddb;
-#[macro_use]
-extern crate tera;
+extern crate regex;
+extern crate env_logger;
 
 use std::env;
 use std::net::IpAddr;
 use std::str::FromStr;
-use std::collections::{HashMap, BTreeMap};
+use std::collections::HashMap;
 
+use tera::Tera;
+use actix_web::{get, web, App, Error, HttpRequest, HttpResponse, Result, HttpServer, Responder};
+use actix_files::Files;
 use regex::Regex;
-use maxminddb::geoip2::Country;
-use actix_web::http::{Method};
-use actix_web::{
-    fs, error, middleware, server, App, Error, Query, State,
-    HttpRequest, HttpResponse, Result
-};
+use serde::Deserialize;
+use maxminddb::geoip2;
 
-struct AppState {
-    template: tera::Tera,
+#[derive(Deserialize)]
+struct ListQuery {
+    cmd: Option<String>,
 }
 
-fn is_cli(req: &HttpRequest<AppState>) -> bool {
+#[derive(Deserialize)]
+struct PathInfo {
+    name: String,
+}
+
+fn is_cli(req: &HttpRequest) -> bool {
     let user_agent = format!("{:?}", req.headers().get("user-agent").unwrap());
     let re = Regex::new(r"(curl|wget|Wget|fetch slibfetch)/.*$").unwrap();
-    return re.is_match(&user_agent)
+    return re.is_match(&user_agent);
 }
 
-fn lookup_ip(req: &HttpRequest<AppState>) -> String {
-    return format!("{}", req.connection_info()
-                            .remote()
-                            .unwrap()
-                            .splitn(2, ":")
-                            .next()
-                            .unwrap()
-                        )
+fn lookup_ip(req: &HttpRequest) -> String {
+    return match env::var("PROXY_MODE") {
+        Ok(_) => {
+            if let Some(real_ip) = req.connection_info().realip_remote_addr() {
+                return format!("{}", real_ip);
+            }
+            format!("{}", req.peer_addr().unwrap().ip())
+        }
+        Err(_) => format!("{}", req.peer_addr().unwrap().ip())
+    };
 }
 
 fn lookup_cmd(cmd: &str) -> &str {
     let s = match cmd {
-        "curl"  => "curl",
-        "wget"  => "wget -qO -",
+        "curl" => "curl",
+        "wget" => "wget -qO -",
         "fetch" => "fetch -qo -",
-        _       => ""
+        _ => ""
     };
-    return s
+    return s;
 }
 
-fn lookup_country(ip_address: &String) -> Option<BTreeMap<String, String>> {
-    // Lookup Country from user's public ip address. The GeoLite2-Country.mmdb
+fn lookup_country(ip_address: &String) -> String {
+    // Convert visitor's ip address to country. The GeoLite2-Country.mmdb
     // can be downloaded from https://dev.maxmind.com/geoip/geoip2/geolite2
-    let reader = maxminddb::Reader::open("GeoLite2-Country.mmdb").unwrap();
+    let reader = maxminddb::Reader::open_readfile("GeoLite2-Country.mmdb").unwrap();
     let ip: IpAddr = FromStr::from_str(ip_address).unwrap();
-    match reader.lookup(ip) {
-        Ok(db)      => {
-            let db : Country = db;
-            return db.country.and_then(|n| n.names)
-            }
-        Err(error)  => {
+
+    return match reader.lookup(ip) {
+        Ok(db) => {
+            let db: geoip2::Country = db;
+            format!("{}", db.country.unwrap().names.unwrap()["en"])
+        }
+        Err(error) => {
             println!("Error during looking up ip {:?} the DB: {:?}", ip_address, error);
-            let mut default_country = BTreeMap::new();
-            default_country.insert(String::from("en"), String::from("Unknown"));
-            return Some(default_country)
-            }
+            String::from("Unknown")
+        }
     };
 }
 
-fn render_template(state: State<AppState>, template: &str) -> Result<HttpResponse, Error> {
-    let s = state
-            .template
-            .render(template, &tera::Context::new())
-            .map_err(|_| error::ErrorInternalServerError("Template error"))?;
+fn render_template(tera: web::Data<Tera>, template: &str) -> Result<HttpResponse, Error> {
+    let s = tera.render(template, &tera::Context::new()).unwrap();
     Ok(HttpResponse::Ok().content_type("text/html").body(s))
 }
 
-fn favicon(state: State<AppState>) -> Result<fs::NamedFile> {
-    Ok(fs::NamedFile::open("static/favicon.ico")?)
+async fn not_found(tera: web::Data<Tera>) -> Result<HttpResponse, Error> {
+    render_template(tera, "404.html")
 }
 
-fn p404(state: State<AppState>) -> Result<HttpResponse, Error> {
-    render_template(state, "404.html")
-}
-
-fn index(req: HttpRequest<AppState>,
-         query: Query<HashMap<String, String>>) -> Result<HttpResponse, Error> {
+#[get("/")]
+async fn index(req: HttpRequest, query: web::Query::<ListQuery>, tera: web::Data<Tera>) -> impl Responder {
     let ip_address = lookup_ip(&req);
+
     // If user browses the index page by using command line,
     // return the public ip address instead of whole html page.
     if is_cli(&req) {
-        return Ok(HttpResponse::Ok().content_type("text/plain").body(ip_address + "\n"))
+        return HttpResponse::Ok().content_type("text/plain").body(ip_address + "\n");
     }
 
-    let default_cmd = String::from("curl");
-    let cmd = query.get("cmd").unwrap_or(&default_cmd);
     let country = lookup_country(&ip_address);
-    let country_name =  match &country {
-                                None => "Unknown",
-                                Some (n) => n.get("en").unwrap()
-                            };
+
+    // Get the command from cmd query string
+    let mut cmd = String::from("curl");
+    match &query.cmd {
+        None => {}
+        Some(val) => {
+            cmd = val.to_string()
+        }
+    }
 
     // Create a HashMap from request's header
     // for later using with json.
@@ -118,7 +116,7 @@ fn index(req: HttpRequest<AppState>,
     // Remove Host header
     headers.remove("host");
     // Add country and ip address into above HashMap
-    headers.insert(String::from("country"), format!("{:}", country_name));
+    headers.insert(String::from("country"), format!("{:}", country));
     headers.insert(String::from("ip-address"), format!("{:}", ip_address));
 
     // Create a Context for template variable rendering
@@ -127,95 +125,77 @@ fn index(req: HttpRequest<AppState>,
     context.insert("cmd_with_options", lookup_cmd(&cmd));
     context.insert("ip_address", &ip_address);
     context.insert("headers", &headers);
-    context.insert("country", country_name);
+    context.insert("country", &country);
 
-    let rendered = req.state()
-        .template
-        .render("index.html", &context).map_err(|e| {
-            error::ErrorInternalServerError(e.description().to_owned())
-        })?;
-
-    Ok(HttpResponse::Ok().content_type("text/html").body(rendered))
+    let rendered = tera.render("index.html", &context).unwrap();
+    HttpResponse::Ok().content_type("text/html").body(rendered)
 }
 
-fn custom_query(req: HttpRequest<AppState>,
-                state: State<AppState>,
-                query: Query<HashMap<String, String>>) -> Result<HttpResponse, Error> {
-    let param = req.match_info().get("param").unwrap();
-    match param {
+#[get("/{name}")]
+async fn custom_query(req: HttpRequest, path: web::Path<PathInfo>, tera: web::Data<Tera>) -> impl Responder {
+    let name = &path.name;
+    match name.as_ref() {
         "country" => {
-                let ip_address = lookup_ip(&req);
-                let country = lookup_country(&ip_address);
-                match country {
-                    Some (n) => return Ok(HttpResponse::Ok()
-                                        .content_type("text/plain")
-                                        .body(n.get("en").unwrap())
-                                        ),
-                    _ => return Ok(HttpResponse::Ok()
-                                .content_type("text/plain")
-                                .body("Unknown"))
-                }
-            }
-        "all.json" => {
-                let mut headers = HashMap::new();
-                for (key, value) in req.headers().iter() {
-                    let k = format!("{:}", key);
-                    let mut v = format!("{:?}", value);
-                    v = v.replace('"', "");
-                    headers.insert(k, v);
-                }
-
-                let ip_address = lookup_ip(&req);
-                let country = lookup_country(&ip_address);
-                let country_name =  match &country {
-                                None => "Unknown",
-                                Some (n) => n.get("en").unwrap()
-                            };
-
-                headers.remove("host");
-                headers.insert(String::from("country"), format!("{:}", country_name));
-                headers.insert(String::from("ip-address"), format!("{:}", ip_address));
-                let result = serde_json::to_string_pretty(&headers).unwrap();
-                return Ok(HttpResponse::Ok().content_type("application/json").body(result))
+            let ip_address = lookup_ip(&req);
+            let country = lookup_country(&ip_address);
+            return Ok(HttpResponse::Ok()
+                .content_type("text/plain")
+                .body(country));
         }
-        _   => {
-                if req.headers().contains_key(param) {
-                    let output = format!("{:?}", req.headers().get(param).unwrap());
-                    return Ok(HttpResponse::Ok().content_type("text/plain").body(output))
-                } else {
-                    if is_cli(&req) {
-                        return Ok(HttpResponse::Ok().content_type("text/html").body(""))
-                    }
-                    render_template(state, "404.html")
+        "all.json" => {
+            let mut headers = HashMap::new();
+            for (key, value) in req.headers().iter() {
+                let k = format!("{:}", key);
+                let mut v = format!("{:?}", value);
+                v = v.replace('"', "");
+                headers.insert(k, v);
+            }
+
+            let ip_address = lookup_ip(&req);
+            let country = lookup_country(&ip_address);
+
+            headers.remove("host");
+            headers.insert(String::from("country"), format!("{:}", country));
+            headers.insert(String::from("ip-address"), format!("{:}", ip_address));
+            let result = serde_json::to_string_pretty(&headers).unwrap();
+            return Ok(HttpResponse::Ok().content_type("application/json").body(result));
+        }
+        _ => {
+            if req.headers().contains_key(name) {
+                let output = format!("{:?}", req.headers().get(name).unwrap());
+                return Ok(HttpResponse::Ok().content_type("text/plain").body(output));
+            } else {
+                if is_cli(&req) {
+                    return Ok(HttpResponse::Ok().content_type("text/plain").body(""));
                 }
+                render_template(tera, "404.html")
+            }
         }
     }
 }
 
-fn main() {
-    env::set_var("RUST_LOG", "actix_web=debug");
-    env::set_var("RUST_BACKTRACE", "1");
-    env_logger::init();
-    let sys = actix::System::new("ifconfig.top");
-
-    let addr = server::new(|| {
-        let tera = compile_templates!(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*"));
-        App::with_state(AppState{template: tera})
-            // enable logger
-            .middleware(middleware::Logger::default())
-            // register favicon
-            .resource("/favicon.ico", |r| r.method(Method::GET).with(favicon))
-            // register home page
-            .resource("/", |r| r.method(Method::GET).with(index))
-            // register custom queries
-            .resource("/{param}", |r| r.method(Method::GET).with(custom_query))
-            // default page
-            .default_resource(|r| r.method(Method::GET).with(p404))
-            })
-        .bind("0.0.0.0:9292").expect("Can not bind to 0.0.0.0:9292")
-        .shutdown_timeout(0)
-        .start();
-
-    println!("Starting web server: 0.0.0.0:9292");
-    let _ = sys.run();
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    HttpServer::new(|| {
+        let tera = match Tera::new("templates/**/*.html") {
+            Ok(t) => t,
+            Err(e) => {
+                println!("Parsing error(s): {}", e);
+                ::std::process::exit(1);
+            }
+        };
+        App::new()
+            .data(tera)
+            .service(
+                Files::new("/static", "./static").show_files_listing()
+            )
+            .service(index)
+            .service(custom_query)
+            .default_service(
+                web::route().to(not_found)
+            )
+    })
+        .bind("0.0.0.0:5000")?
+        .run()
+        .await
 }
