@@ -1,14 +1,16 @@
 [package]
 name = "ifconfig_dot_top"
-version = "0.1.0"
+version = "0.1.1"
+edition = "2021"
 authors = ["Khanh Ngo <k@ndk.name>"]
 
 [dependencies]
-actix = "0.7"
-actix-web = "0.7"
-tera = "0.11"
-futures = "0.1"
+actix-web = "3"
+actix-files = "0.5.0"
+tera = "1"
+serde = "1"
+serde_json = "1"
+maxminddb = "0.17"
 env_logger = "0.5"
-maxminddb = "0.8.1"
 regex = "1"
-serde_json = "1.0.33"
+
