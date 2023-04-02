@@ -1,5 +1,5 @@
-FROM rust:1.57.0-alpine3.14 as builder
-LABEL maintainer="Khanh Ngo <k@ndk.name"
+FROM rust:1.68.2-alpine3.17 as builder
+LABEL maintainer="PaperDragon <2678885646@qq.com> && Khanh Ngo <k@ndk.name>"
 
 WORKDIR /build
 
