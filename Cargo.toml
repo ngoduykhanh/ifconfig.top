@@ -1,7 +1,7 @@
 [package]
 name = "ifconfig_dot_icu"
 version = "0.1.1"
-edition = "2023"
+edition = "2021"
 authors = ["PaperDragon <2678885646@qq.com> && Khanh Ngo <k@ndk.name>"]
 
 [dependencies]
