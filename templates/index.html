@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>What is my IP address? &mdash; ifconfig.top</title>
+    <title>What is my IP address? &mdash; ifconfig.icu</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="What is my IP address?">
     <link href="//fonts.googleapis.com/css?family=Oswald" rel="stylesheet">
@@ -73,7 +73,7 @@
     </script>
 </head>
 <body>
-<a href="https://github.com/ngoduykhanh/ifconfig.top" class="github-corner" aria-label="View source on GitHub">
+<a href="https://github.com/paperdragon/ifconfig.icu" class="github-corner" aria-label="View source on GitHub">
     <svg width="80" height="80" viewBox="0 0 250 250"
          style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true">
         <path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path>
@@ -102,26 +102,26 @@
         </thead>
         <tbody>
         <tr>
-            <td><code><span class="command">{{ cmd_with_options }}</span> ifconfig.top</code></td>
+            <td><code><span class="command">{{ cmd_with_options }}</span> ifconfig.icu</code></td>
             <td class="response">{{ ip_address }}</td>
         </tr>
         {% if headers %}
             {% for k,v in headers %}
                 <tr>
-                    <td><code><span class="command">{{ cmd_with_options }}</span> ifconfig.top/{{ k | safe }}</code>
+                    <td><code><span class="command">{{ cmd_with_options }}</span> ifconfig.icu/{{ k | safe }}</code>
                     </td>
                     <td class="response">{{ v | safe }}</td>
                 </tr>
             {% endfor %}
         {% endif %}
         <tr>
-            <td><code><span class="command">{{ cmd_with_options }}</span> ifconfig.top/country</code></td>
+            <td><code><span class="command">{{ cmd_with_options }}</span> ifconfig.icu/country</code></td>
             <td>
                 <pre class="response">{{ country }}</pre>
             </td>
         </tr>
         <tr>
-            <td><code><span class="command">{{ cmd_with_options }}</span> ifconfig.top/all.json</code></td>
+            <td><code><span class="command">{{ cmd_with_options }}</span> ifconfig.icu/all.json</code></td>
             <td>
                 <pre class="response">{{ headers | safe | json_encode(pretty=true) }}</pre>
             </td>

@@ -1,8 +1,8 @@
 [package]
-name = "ifconfig_dot_top"
+name = "ifconfig_dot_icu"
 version = "0.1.1"
-edition = "2021"
-authors = ["Khanh Ngo <k@ndk.name>"]
+edition = "2023"
+authors = ["PaperDragon <2678885646@qq.com> && Khanh Ngo <k@ndk.name>"]
 
 [dependencies]
 actix-web = "3"
