@@ -24,9 +24,9 @@ WORKDIR /app
 COPY --from=builder --chown=ifconfig:ifconfig /build/static /app/static/
 COPY --from=builder --chown=ifconfig:ifconfig /build/templates /app/templates/
 COPY --from=builder --chown=ifconfig:ifconfig /build/GeoLite2-Country.mmdb /app
-COPY --from=builder --chown=ifconfig:ifconfig /build/target/release/ifconfig_dot_top /app
+COPY --from=builder --chown=ifconfig:ifconfig /build/target/release/ifconfig_dot_icu /app
 
-RUN chmod +x ifconfig_dot_top
+RUN chmod +x ifconfig_dot_icu
 
 EXPOSE 5000/tcp
-ENTRYPOINT ["/app/ifconfig_dot_top"]
+ENTRYPOINT ["/app/ifconfig_dot_icu"]
