@@ -967,7 +967,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ifconfig_dot_top"
+name = "ifconfig_dot_icu"
 version = "0.1.1"
 dependencies = [
  "actix-files",

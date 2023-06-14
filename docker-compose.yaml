@@ -2,7 +2,7 @@ version: '3'
 
 services:
   ifconfig:
-    image: ngoduykhanh/ifconfig.top:latest
+    image: jockerdragon/ifconfig.icu:latest
     container_name: ifconfig
     environment:
       - PROXY_MODE=true
