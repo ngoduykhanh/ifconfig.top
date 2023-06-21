@@ -1,13 +1,13 @@
-## ifconfig.top
+## ifconfig.icu
 A simple web application written in Rust to show visitor's ip address.
 
-Demo: [https://ifconfig.top](https://ifconfig.top).
+Demo: [https://ifconfig.icu](https://ifconfig.icu).
 
 ## Run it
 Clone the source code and run it
 ```
-$ git clone https://github.com/ngoduykhanh/ifconfig.top.git
-$ cd ifconfig.top
+$ git clone https://github.com/Paper-Dragon/ifconfig.icu.git
+$ cd ifconfig.icu
 $ cargo run
 ```
 
