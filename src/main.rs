@@ -73,6 +73,25 @@ fn lookup_country(ip_address: &String) -> String {
     };
 }
 
+
+fn lookup_city(ip_address: &String) -> String {
+    // Convert visitor's ip address to City. The GeoLite2-City.mmdb
+    // can be downloaded from https://dev.maxmind.com/geoip/geoip2/geolite2
+    let reader = maxminddb::Reader::open_readfile("GeoLite2-City.mmdb").unwrap();
+    let ip: IpAddr = FromStr::from_str(ip_address).unwrap();
+
+    return match reader.lookup(ip) {
+        Ok(db) => {
+            let db: geoip2::City = db;
+            format!("{}", db.city.unwrap().names.unwrap()["en"])
+        }
+        Err(error) => {
+            println!("Error during looking up ip {:?} the DB: {:?}", ip_address, error);
+            String::from("Unknown")
+        }
+    };
+}
+
 fn render_template(tera: web::Data<Tera>, template: &str) -> Result<HttpResponse, Error> {
     let s = tera.render(template, &tera::Context::new()).unwrap();
     Ok(HttpResponse::Ok().content_type("text/html").body(s))
@@ -93,6 +112,8 @@ async fn index(req: HttpRequest, query: web::Query::<ListQuery>, tera: web::Data
     }
 
     let country = lookup_country(&ip_address);
+
+    let city = lookup_city(&ip_address);
 
     // Get the command from cmd query string
     let mut cmd = String::from("curl");
@@ -126,6 +147,7 @@ async fn index(req: HttpRequest, query: web::Query::<ListQuery>, tera: web::Data
     context.insert("ip_address", &ip_address);
     context.insert("headers", &headers);
     context.insert("country", &country);
+    context.insert("city", &city);
 
     let rendered = tera.render("index.html", &context).unwrap();
     HttpResponse::Ok().content_type("text/html").body(rendered)
@@ -142,6 +164,16 @@ async fn custom_query(req: HttpRequest, path: web::Path<PathInfo>, tera: web::Da
                 .content_type("text/plain")
                 .body(country));
         }
+        
+        "city" => {
+            let ip_address = lookup_ip(&req);
+            let city = lookup_city(&ip_address);
+            return Ok(HttpResponse::Ok()
+                .content_type("text/plain")
+                .body(city));
+        }
+
+
         "all.json" => {
             let mut headers = HashMap::new();
             for (key, value) in req.headers().iter() {
@@ -153,9 +185,11 @@ async fn custom_query(req: HttpRequest, path: web::Path<PathInfo>, tera: web::Da
 
             let ip_address = lookup_ip(&req);
             let country = lookup_country(&ip_address);
+            let city = lookup_city(&ip_address);
 
             headers.remove("host");
             headers.insert(String::from("country"), format!("{:}", country));
+            headers.insert(String::from("city"), format!("{:}", city));
             headers.insert(String::from("ip-address"), format!("{:}", ip_address));
             let result = serde_json::to_string_pretty(&headers).unwrap();
             return Ok(HttpResponse::Ok().content_type("application/json").body(result));
